@@ -7,3 +7,5 @@ To get started, try saying 'toggle lights'. This should change the slider to the
 * 'Light(s) on'
 * 'Light(s) off'
 * 'Change model'
+
+Note that this project requires the OpenEars framework, SLT voice framework, and the English accoustical model. These files can be found [here](http://www.politepix.com/openears/)
