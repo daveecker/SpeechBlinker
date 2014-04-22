@@ -65,6 +65,7 @@
 - (IBAction) toggleLight;
 - (void) lightsOn;
 - (void) lightsOff;
+- (void) toggleTorch: (bool) on;
 
 // Example for reading out the input audio levels without locking the UI using an NSTimer
 - (void) startDisplayingLevels;

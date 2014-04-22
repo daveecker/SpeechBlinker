@@ -13,6 +13,8 @@
 #import <OpenEars/OpenEarsLogging.h>
 #import <OpenEars/AcousticModel.h>
 
+#import <AVFoundation/AVFoundation.h>
+
 @interface ViewController ()
 
 @end
@@ -575,10 +577,12 @@
     if ([lightToggle isOn]) {
         //lights are on, toggle off
         [lightToggle setOn:NO animated:NO];
+        [self toggleTorch:FALSE];
     }
     else{
         //lights are off, toggle on
         [lightToggle setOn:YES animated:YES];
+        [self toggleTorch:true];
     }
 }
 
@@ -601,6 +605,28 @@
     else{
         //lights are off, say message
         [self.fliteController say:[NSString stringWithFormat:@"I'm sorry Dave, I'm afraid I can't do that."] withVoice:self.slt];
+    }
+}
+
+- (void) toggleTorch: (bool) on {
+    
+    // check if flashlight available
+    Class captureDeviceClass = NSClassFromString(@"AVCaptureDevice");
+    if (captureDeviceClass != nil) {
+        AVCaptureDevice *device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
+        if ([device hasTorch] && [device hasFlash]){
+            [device lockForConfiguration:nil];
+            if (on) {
+                [device setTorchMode:AVCaptureTorchModeOn];
+                [device setFlashMode:AVCaptureFlashModeOn];
+                //torchIsOn = YES; //define as a variable/property if you need to know status
+            } else {
+                [device setTorchMode:AVCaptureTorchModeOff];
+                [device setFlashMode:AVCaptureFlashModeOff];
+                //torchIsOn = NO;
+            }
+            [device unlockForConfiguration];
+        }
     }
 }
 
