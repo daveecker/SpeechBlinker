@@ -140,13 +140,8 @@
     
     NSArray *firstLanguageArray = [[NSArray alloc] initWithArray:[NSArray arrayWithObjects: // All capital letters.
                                                                   @"CHANGE",
-                                                                  @"MODEL",
                                                                   @"STOP LISTENING",
                                                                   @"LIGHTS",
-                                                                  @"LIGHT",
-                                                                  @"ON",
-                                                                  @"OFF",
-                                                                  @"TOGGLE",
                                                                   nil]];
     LanguageModelGenerator *languageModelGenerator = [[LanguageModelGenerator alloc] init];
     
@@ -177,15 +172,14 @@
 	// we put into the array as one string (e.g. "CHANGE MODEL" instead of "CHANGE" and "MODEL"). This increases the probability that they will be recognized as a phrase. This works even better starting with version 1.0 of OpenEars.
 	
 	NSArray *secondLanguageArray = [[NSArray alloc] initWithArray:[NSArray arrayWithObjects: // All capital letters.
-                                                                   @"SUNDAY",
-                                                                   @"MONDAY",
-                                                                   @"TUESDAY",
-                                                                   @"WEDNESDAY",
-                                                                   @"THURSDAY",
-                                                                   @"FRIDAY",
-                                                                   @"SATURDAY",
-                                                                   @"QUIDNUNC",
-                                                                   @"CHANGE MODEL",
+                                                                   @"LIGHT",
+                                                                   @"OFF",
+                                                                   @"RED",
+                                                                   @"BLUE",
+                                                                   @"GREEN",
+                                                                   @"ON",
+                                                                   @"AND",
+                                                                   @"GO BACK",
                                                                    nil]];
     
 	// The last entry, quidnunc, is an example of a word which will not be found in the lookup dictionary and will be passed to the fallback method. The fallback method is slower,
