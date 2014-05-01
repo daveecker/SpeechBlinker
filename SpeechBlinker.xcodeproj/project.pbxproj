@@ -65,6 +65,9 @@
 		9D2A8275190061D400AFD578 /* Slt.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = Slt.framework; sourceTree = "<group>"; };
 		9D2A827A190062D600AFD578 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
 		9D2A827C190062DF00AFD578 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
+		9DCB512D1912057E003B8239 /* BLE.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BLE.h; sourceTree = "<group>"; };
+		9DCB512E1912057E003B8239 /* BLE.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BLE.m; sourceTree = "<group>"; };
+		9DCB512F1912057E003B8239 /* BLEDefines.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BLEDefines.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -118,6 +121,7 @@
 		9D2A823C190060A700AFD578 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				9DCB512C1912057E003B8239 /* BLE */,
 				9D2A827C190062DF00AFD578 /* AVFoundation.framework */,
 				9D2A827A190062D600AFD578 /* AudioToolbox.framework */,
 				9D2A823D190060A700AFD578 /* Foundation.framework */,
@@ -180,6 +184,16 @@
 				9D2A8275190061D400AFD578 /* Slt.framework */,
 			);
 			path = Framework;
+			sourceTree = "<group>";
+		};
+		9DCB512C1912057E003B8239 /* BLE */ = {
+			isa = PBXGroup;
+			children = (
+				9DCB512D1912057E003B8239 /* BLE.h */,
+				9DCB512E1912057E003B8239 /* BLE.m */,
+				9DCB512F1912057E003B8239 /* BLEDefines.h */,
+			);
+			path = BLE;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
