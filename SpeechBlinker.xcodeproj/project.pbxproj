@@ -27,6 +27,9 @@
 		9D2A8279190061D400AFD578 /* Slt.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9D2A8275190061D400AFD578 /* Slt.framework */; };
 		9D2A827B190062D700AFD578 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9D2A827A190062D600AFD578 /* AudioToolbox.framework */; };
 		9D2A827D190062DF00AFD578 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9D2A827C190062DF00AFD578 /* AVFoundation.framework */; };
+		9D32356A191362B100741EE8 /* mic.png in Resources */ = {isa = PBXBuildFile; fileRef = 9D323569191362B100741EE8 /* mic.png */; };
+		9D32357419138E3500741EE8 /* CoreBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9D32357319138E3500741EE8 /* CoreBluetooth.framework */; };
+		9D3235791913945F00741EE8 /* BLE.m in Sources */ = {isa = PBXBuildFile; fileRef = 9D323577191393C700741EE8 /* BLE.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -65,9 +68,11 @@
 		9D2A8275190061D400AFD578 /* Slt.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = Slt.framework; sourceTree = "<group>"; };
 		9D2A827A190062D600AFD578 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
 		9D2A827C190062DF00AFD578 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
-		9DCB512D1912057E003B8239 /* BLE.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BLE.h; sourceTree = "<group>"; };
-		9DCB512E1912057E003B8239 /* BLE.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BLE.m; sourceTree = "<group>"; };
-		9DCB512F1912057E003B8239 /* BLEDefines.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BLEDefines.h; sourceTree = "<group>"; };
+		9D323569191362B100741EE8 /* mic.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = mic.png; sourceTree = "<group>"; };
+		9D32357319138E3500741EE8 /* CoreBluetooth.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreBluetooth.framework; path = System/Library/Frameworks/CoreBluetooth.framework; sourceTree = SDKROOT; };
+		9D323576191393C700741EE8 /* BLE.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BLE.h; sourceTree = "<group>"; };
+		9D323577191393C700741EE8 /* BLE.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BLE.m; sourceTree = "<group>"; };
+		9D323578191393C700741EE8 /* BLEDefines.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BLEDefines.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -75,12 +80,13 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9D32357419138E3500741EE8 /* CoreBluetooth.framework in Frameworks */,
+				9D2A8242190060A700AFD578 /* UIKit.framework in Frameworks */,
+				9D2A823E190060A700AFD578 /* Foundation.framework in Frameworks */,
+				9D2A8240190060A700AFD578 /* CoreGraphics.framework in Frameworks */,
 				9D2A827D190062DF00AFD578 /* AVFoundation.framework in Frameworks */,
 				9D2A827B190062D700AFD578 /* AudioToolbox.framework in Frameworks */,
 				9D2A8279190061D400AFD578 /* Slt.framework in Frameworks */,
-				9D2A8240190060A700AFD578 /* CoreGraphics.framework in Frameworks */,
-				9D2A8242190060A700AFD578 /* UIKit.framework in Frameworks */,
-				9D2A823E190060A700AFD578 /* Foundation.framework in Frameworks */,
 				9D2A8278190061D400AFD578 /* OpenEars.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -101,9 +107,9 @@
 		9D2A8231190060A700AFD578 = {
 			isa = PBXGroup;
 			children = (
+				9D323575191393C700741EE8 /* BLE */,
 				9D2A8243190060A700AFD578 /* SpeechBlinker */,
 				9D2A825C190060A700AFD578 /* SpeechBlinkerTests */,
-				9D2A823C190060A700AFD578 /* Frameworks */,
 				9D2A823B190060A700AFD578 /* Products */,
 				9D2A8271190061D400AFD578 /* Framework */,
 			);
@@ -118,20 +124,6 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		9D2A823C190060A700AFD578 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				9DCB512C1912057E003B8239 /* BLE */,
-				9D2A827C190062DF00AFD578 /* AVFoundation.framework */,
-				9D2A827A190062D600AFD578 /* AudioToolbox.framework */,
-				9D2A823D190060A700AFD578 /* Foundation.framework */,
-				9D2A823F190060A700AFD578 /* CoreGraphics.framework */,
-				9D2A8241190060A700AFD578 /* UIKit.framework */,
-				9D2A8256190060A700AFD578 /* XCTest.framework */,
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
 		9D2A8243190060A700AFD578 /* SpeechBlinker */ = {
 			isa = PBXGroup;
 			children = (
@@ -141,6 +133,7 @@
 				9D2A824C190060A700AFD578 /* AppDelegate.h */,
 				9D2A824D190060A700AFD578 /* AppDelegate.m */,
 				9D2A824F190060A700AFD578 /* Images.xcassets */,
+				9D3235681913629600741EE8 /* Resources */,
 				9D2A8244190060A700AFD578 /* Supporting Files */,
 			);
 			path = SpeechBlinker;
@@ -178,6 +171,13 @@
 		9D2A8271190061D400AFD578 /* Framework */ = {
 			isa = PBXGroup;
 			children = (
+				9D32357319138E3500741EE8 /* CoreBluetooth.framework */,
+				9D2A827C190062DF00AFD578 /* AVFoundation.framework */,
+				9D2A827A190062D600AFD578 /* AudioToolbox.framework */,
+				9D2A823D190060A700AFD578 /* Foundation.framework */,
+				9D2A823F190060A700AFD578 /* CoreGraphics.framework */,
+				9D2A8241190060A700AFD578 /* UIKit.framework */,
+				9D2A8256190060A700AFD578 /* XCTest.framework */,
 				9D2A8272190061D400AFD578 /* AcousticModelEnglish.bundle */,
 				9D2A8273190061D400AFD578 /* AcousticModelSpanish.bundle */,
 				9D2A8274190061D400AFD578 /* OpenEars.framework */,
@@ -186,14 +186,24 @@
 			path = Framework;
 			sourceTree = "<group>";
 		};
-		9DCB512C1912057E003B8239 /* BLE */ = {
+		9D3235681913629600741EE8 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				9DCB512D1912057E003B8239 /* BLE.h */,
-				9DCB512E1912057E003B8239 /* BLE.m */,
-				9DCB512F1912057E003B8239 /* BLEDefines.h */,
+				9D323569191362B100741EE8 /* mic.png */,
 			);
-			path = BLE;
+			name = Resources;
+			path = ..;
+			sourceTree = "<group>";
+		};
+		9D323575191393C700741EE8 /* BLE */ = {
+			isa = PBXGroup;
+			children = (
+				9D323576191393C700741EE8 /* BLE.h */,
+				9D323577191393C700741EE8 /* BLE.m */,
+				9D323578191393C700741EE8 /* BLEDefines.h */,
+			);
+			name = BLE;
+			path = Framework/BLE;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -274,6 +284,7 @@
 				9D2A8248190060A700AFD578 /* InfoPlist.strings in Resources */,
 				9D2A8277190061D400AFD578 /* AcousticModelSpanish.bundle in Resources */,
 				9D2A8276190061D400AFD578 /* AcousticModelEnglish.bundle in Resources */,
+				9D32356A191362B100741EE8 /* mic.png in Resources */,
 				9D2A82701900611300AFD578 /* ViewController.xib in Resources */,
 				9D2A8250190060A700AFD578 /* Images.xcassets in Resources */,
 			);
@@ -294,6 +305,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9D3235791913945F00741EE8 /* BLE.m in Sources */,
 				9D2A826F1900611300AFD578 /* ViewController.m in Sources */,
 				9D2A824E190060A700AFD578 /* AppDelegate.m in Sources */,
 				9D2A824A190060A700AFD578 /* main.m in Sources */,
@@ -420,7 +432,9 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "SpeechBlinker/SpeechBlinker-Prefix.pch";
 				INFOPLIST_FILE = "SpeechBlinker/SpeechBlinker-Info.plist";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				VALID_ARCHS = "arm64 armv7 armv7s";
 				WRAPPER_EXTENSION = app;
 			};
 			name = Debug;
@@ -437,7 +451,9 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "SpeechBlinker/SpeechBlinker-Prefix.pch";
 				INFOPLIST_FILE = "SpeechBlinker/SpeechBlinker-Info.plist";
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				VALID_ARCHS = "arm64 armv7 armv7s";
 				WRAPPER_EXTENSION = app;
 			};
 			name = Release;

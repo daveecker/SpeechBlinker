@@ -25,29 +25,48 @@
 @synthesize fliteController;
 @synthesize startButton;
 @synthesize stopButton;
-@synthesize resumeListeningButton;
-@synthesize suspendListeningButton;
 @synthesize statusTextView;
-@synthesize heardTextView;
 @synthesize pocketsphinxDbLabel;
 @synthesize fliteDbLabel;
 @synthesize openEarsEventsObserver;
-@synthesize usingStartLanguageModel;
 @synthesize pathToFirstDynamicallyGeneratedLanguageModel;
 @synthesize pathToFirstDynamicallyGeneratedDictionary;
-@synthesize pathToSecondDynamicallyGeneratedLanguageModel;
-@synthesize pathToSecondDynamicallyGeneratedDictionary;
 @synthesize uiUpdateTimer;
 @synthesize slt;
 @synthesize restartAttemptsDueToPermissionRequests;
 @synthesize startupFailedDueToLackOfPermissions;
-@synthesize lightToggle;
+
+// speech status indicators
 @synthesize recognitionStatus;
 @synthesize isSpeakingStatus;
 @synthesize listeningStatus;
 @synthesize speechStatus;
 
+// bluetooth controls/status indicators
+@synthesize httButton;
+@synthesize connectButton;
+@synthesize disconnectButton;
+@synthesize youSaidLabel;
+@synthesize oneBar;
+@synthesize twoBar;
+@synthesize threeBar;
+@synthesize rssiLabel;
+@synthesize bluetoothStatus;
+@synthesize transmitStatus;
+
+// LED status indicators
+@synthesize redLed;
+@synthesize greenLed;
+@synthesize blueLed;
+
+// BLE Stuff
+@synthesize ble;
+
 #define kLevelUpdatesPerSecond 18 // We'll have the ui update 18 times a second to show some fluidity without hitting the CPU too hard.
+
+bool isFirstRun = true;
+bool ledEnabled = false;
+bool torchIsOn = false;
 
 - (void)dealloc {
 	[self stopDisplayingLevels]; // We'll need to stop any running timers before attempting to deallocate here.
@@ -118,7 +137,6 @@
     // But under normal circumstances you'll probably want to do continuous recognition as follows:
     
     [self.pocketsphinxController startListeningWithLanguageModelAtPath:self.pathToFirstDynamicallyGeneratedLanguageModel dictionaryAtPath:self.pathToFirstDynamicallyGeneratedDictionary acousticModelAtPath:[AcousticModel pathToModel:@"AcousticModelEnglish"] languageModelIsJSGF:FALSE]; // Change "AcousticModelEnglish" to "AcousticModelSpanish" in order to perform Spanish recognition instead of English.
-    
 }
 
 - (void)viewDidLoad
@@ -126,8 +144,18 @@
     [super viewDidLoad];
     // Do any additional setup after loading the view from its nib.
     
+    // ble initialization
+    ble = [[BLE alloc] init];
+    [ble controlSetup];
+    ble.delegate = self;
+    
     self.restartAttemptsDueToPermissionRequests = 0;
     self.startupFailedDueToLackOfPermissions = FALSE;
+    self.httButton.layer.cornerRadius = 5;
+    self.httButton.layer.borderColor = [UIColor lightGrayColor].CGColor;
+    self.httButton.layer.borderWidth = 0.5;
+    self.httButton.hidden = TRUE;
+
     
     //[OpenEarsLogging startOpenEarsLogging]; // Uncomment me for OpenEarsLogging
     
@@ -139,9 +167,18 @@
 	// but you can pass the string contents directly to PocketsphinxController:startListeningWithLanguageModelAtPath:dictionaryAtPath:languageModelIsJSGF:
     
     NSArray *firstLanguageArray = [[NSArray alloc] initWithArray:[NSArray arrayWithObjects: // All capital letters.
-                                                                  @"CHANGE",
-                                                                  @"STOP LISTENING",
                                                                   @"LIGHTS",
+                                                                  @"OFF",
+                                                                  @"RED",
+                                                                  @"BLUE",
+                                                                  @"GREEN",
+                                                                  @"ON",
+                                                                  @"AND",
+                                                                  @"STOP LISTENING",
+                                                                  @"CONNECT",
+                                                                  @"DISCONNECT",
+                                                                  @"TOGGLE LIGHTS",
+                                                                  @"FLASHLIGHT",
                                                                   nil]];
     LanguageModelGenerator *languageModelGenerator = [[LanguageModelGenerator alloc] init];
     
@@ -164,75 +201,6 @@
 		self.pathToFirstDynamicallyGeneratedDictionary = dictionaryPath;
 	}
     
-	self.usingStartLanguageModel = TRUE; // This is not an OpenEars thing, this is just so I can switch back and forth between the two models in this sample app.
-	
-	// Here is an example of dynamically creating an in-app grammar.
-	
-	// We want it to be able to response to the speech "CHANGE MODEL" and a few other things.  Items we want to have recognized as a whole phrase (like "CHANGE MODEL")
-	// we put into the array as one string (e.g. "CHANGE MODEL" instead of "CHANGE" and "MODEL"). This increases the probability that they will be recognized as a phrase. This works even better starting with version 1.0 of OpenEars.
-	
-	NSArray *secondLanguageArray = [[NSArray alloc] initWithArray:[NSArray arrayWithObjects: // All capital letters.
-                                                                   @"LIGHT",
-                                                                   @"OFF",
-                                                                   @"RED",
-                                                                   @"BLUE",
-                                                                   @"GREEN",
-                                                                   @"ON",
-                                                                   @"AND",
-                                                                   @"GO BACK",
-                                                                   nil]];
-    
-	// The last entry, quidnunc, is an example of a word which will not be found in the lookup dictionary and will be passed to the fallback method. The fallback method is slower,
-	// so, for instance, creating a new language model from dictionary words will be pretty fast, but a model that has a lot of unusual names in it or invented/rare/recent-slang
-	// words will be slower to generate. You can use this information to give your users good UI feedback about what the expectations for wait times should be.
-    
-	// I don't think it's beneficial to lazily instantiate LanguageModelGenerator because you only need to give it a single message and then release it.
-	// If you need to create a very large model or any size of model that has many unusual words that have to make use of the fallback generation method,
-	// you will want to run this on a background thread so you can give the user some UI feedback that the task is in progress.
-    
-    //    languageModelGenerator.verboseLanguageModelGenerator = TRUE; // Uncomment me for verbose debug output
-    
-    // generateLanguageModelFromArray:withFilesNamed returns an NSError which will either have a value of noErr if everything went fine or a specific error if it didn't.
-	error = [languageModelGenerator generateLanguageModelFromArray:secondLanguageArray withFilesNamed:@"SecondOpenEarsDynamicLanguageModel" forAcousticModelAtPath:[AcousticModel pathToModel:@"AcousticModelEnglish"]]; // Change "AcousticModelEnglish" to "AcousticModelSpanish" in order to create a language model for Spanish recognition instead of English.
-    
-    //    NSError *error = [languageModelGenerator generateLanguageModelFromTextFile:[NSString stringWithFormat:@"%@/%@",[[NSBundle mainBundle] resourcePath], @"OpenEarsCorpus.txt"] withFilesNamed:@"SecondOpenEarsDynamicLanguageModel" forAcousticModelAtPath:[AcousticModel pathToModel:@"AcousticModelEnglish"]]; // Try this out to see how generating a language model from a corpus works.
-    
-    
-    
-	NSDictionary *secondDynamicLanguageGenerationResultsDictionary = nil;
-	if([error code] != noErr) {
-		NSLog(@"Dynamic language generator reported error %@", [error description]);
-	} else {
-		secondDynamicLanguageGenerationResultsDictionary = [error userInfo];
-		
-		// A useful feature of the fact that generateLanguageModelFromArray:withFilesNamed: always returns an NSError is that when it returns noErr (meaning there was
-		// no error, or an [NSError code] of zero), the NSError also contains a userInfo dictionary which contains the path locations of your new files.
-		
-		// What follows demonstrates how to get the paths for your created dynamic language models out of that userInfo dictionary.
-		NSString *lmFile = [secondDynamicLanguageGenerationResultsDictionary objectForKey:@"LMFile"];
-		NSString *dictionaryFile = [secondDynamicLanguageGenerationResultsDictionary objectForKey:@"DictionaryFile"];
-		NSString *lmPath = [secondDynamicLanguageGenerationResultsDictionary objectForKey:@"LMPath"];
-		NSString *dictionaryPath = [secondDynamicLanguageGenerationResultsDictionary objectForKey:@"DictionaryPath"];
-		
-		NSLog(@"Dynamic language generator completed successfully, you can find your new files %@\n and \n%@\n at the paths \n%@ \nand \n%@", lmFile,dictionaryFile,lmPath,dictionaryPath);
-		
-		// pathToDynamicallyGeneratedGrammar/Dictionary aren't OpenEars things, they are just the way I'm controlling being able to switch between the grammars in this sample app.
-		self.pathToSecondDynamicallyGeneratedLanguageModel = lmPath; // We'll set our new .languagemodel file to be the one to get switched to when the words "CHANGE MODEL" are recognized.
-		self.pathToSecondDynamicallyGeneratedDictionary = dictionaryPath; // We'll set our new dictionary to be the one to get switched to when the words "CHANGE MODEL" are recognized.
-	}
-	
-	
-    // Next, an informative message.
-    
-	//NSLog(@"\n\nWelcome to the OpenEars sample project. This project understands the words:\nBACKWARD,\nCHANGE,\nFORWARD,\nGO,\nLEFT,\nMODEL,\nRIGHT,\nTURN,\nand if you say \"CHANGE MODEL\" it will switch to its dynamically-generated model which understands the words:\nCHANGE,\nMODEL,\nMONDAY,\nTUESDAY,\nWEDNESDAY,\nTHURSDAY,\nFRIDAY,\nSATURDAY,\nSUNDAY,\nQUIDNUNC");
-	
-	// This is how to start the continuous listening loop of an available instance of PocketsphinxController. We won't do this if the language generation failed since it will be listening for a command to change over to the generated language.
-	if(secondDynamicLanguageGenerationResultsDictionary) {
-        
-        [self startListening];
-        
-	}
-    
 	// [self startDisplayingLevels] is not an OpenEars method, just an approach for level reading
 	// that I've included with this sample app. My example implementation does make use of two OpenEars
 	// methods:	the pocketsphinxInputLevel method of PocketsphinxController and the fliteOutputLevel
@@ -249,6 +217,96 @@
 	
 	[self startDisplayingLevels];
 }
+
+// RSSI Timer
+NSTimer *rssiTimer;
+
+- (void)bleDidDisconnect
+{
+    NSLog(@"~~~ BLE Disconnected ~~~");
+    [self appendToStatus:@"BLE Disconnected."];
+    
+    //manipulate the UI to reflect the disconnect
+    [connectButton setHidden:false];
+    [disconnectButton setHidden:true];
+    self.transmitStatus.textColor = [UIColor redColor];
+    self.bluetoothStatus.textColor = [UIColor redColor];
+    rssiLabel.text = @"---";
+    
+    oneBar.textColor = [UIColor lightGrayColor];
+    twoBar.textColor = [UIColor lightGrayColor];
+    threeBar.textColor = [UIColor lightGrayColor];
+    
+    [rssiTimer invalidate];
+}
+
+// When RSSI is changed, this will be called
+-(void) bleDidUpdateRSSI:(NSNumber *) rssi
+{
+    // update the signal indicator based on RSSI
+    rssiLabel.text = rssi.stringValue;
+    if (rssi.intValue > -50) {
+        oneBar.textColor = [UIColor blackColor];
+        twoBar.textColor = [UIColor blackColor];
+        threeBar.textColor = [UIColor blackColor];
+    }
+    else if(rssi.intValue > -70){
+        oneBar.textColor = [UIColor blackColor];
+        twoBar.textColor = [UIColor blackColor];
+        threeBar.textColor = [UIColor lightGrayColor];
+    }
+    else {
+        oneBar.textColor = [UIColor blackColor];
+        twoBar.textColor = [UIColor lightGrayColor];
+        threeBar.textColor = [UIColor lightGrayColor];
+    }
+}
+
+-(void) readRSSITimer:(NSTimer *)timer
+{
+    [ble readRSSI];
+}
+
+// This is called when bluetooth is connected
+-(void) bleDidConnect
+{
+    NSLog(@"~~~ BLE Connected ~~~");
+    [self appendToStatus:@"BLE Connected."];
+    
+    //manipulate the UI to reflect the connect
+    [connectButton setHidden:true];
+    [disconnectButton setHidden:false];
+    self.transmitStatus.textColor = [UIColor redColor];
+    self.bluetoothStatus.textColor = [UIColor greenColor];
+    rssiLabel.text = @"";
+    
+    // send reset
+    UInt8 buf[] = {0x00, 0x00, 0x00};
+    NSData *data = [[NSData alloc] initWithBytes:buf length:3];
+    [ble write:data];
+    
+    // the LEDs on the board are currently disabled due to the reset signal, update the flag
+    ledEnabled = false;
+    
+    // Schedule to read RSSI every 1 sec.
+    rssiTimer = [NSTimer scheduledTimerWithTimeInterval:(float)1.0 target:self selector:@selector(readRSSITimer:) userInfo:nil repeats:YES];
+}
+
+// this is for reading data over bluetooth, don't need it for this app
+/*-(void) bleDidReceiveData:(unsigned char *)data length:(int)length
+{
+    NSLog(@"Length: %d", length);
+    
+    // parse data, all commands are in 3-byte
+    for (int i = 0; i < length; i+=3)
+    {
+        NSLog(@"0x%02X, 0x%02X, 0x%02X", data[i], data[i+1], data[i+2]);
+        
+        // do stuff with the data, change the UI
+        if (data[i] == 0x0A){}
+        
+    }
+}*/
 
 // What follows are all of the delegate methods you can optionally use once you've instantiated an OpenEarsEventsObserver and set its delegate to self.
 // I've provided some pretty granular information about the exact phase of the Pocketsphinx listening loop, the Audio Session, and Flite, but I'd expect
@@ -270,133 +328,182 @@
 - (void) pocketsphinxDidReceiveHypothesis:(NSString *)hypothesis recognitionScore:(NSString *)recognitionScore utteranceID:(NSString *)utteranceID {
     
 	NSLog(@"The received hypothesis is %@ with a score of %@ and an ID of %@", hypothesis, recognitionScore, utteranceID); // Log it.
-	if([hypothesis isEqualToString:@"CHANGE MODEL"]) { // If the user says "CHANGE MODEL", we will switch to the alternate model (which happens to be the dynamically generated model).
-        
-		// Here is an example of language model switching in OpenEars. Deciding on what logical basis to switch models is your responsibility.
-		// For instance, when you call a customer service line and get a response tree that takes you through different options depending on what you say to it,
-		// the models are being switched as you progress through it so that only relevant choices can be understood. The construction of that logical branching and
-		// how to react to it is your job, OpenEars just lets you send the signal to switch the language model when you've decided it's the right time to do so.
-		
-		if(self.usingStartLanguageModel == TRUE) { // If we're on the starting model, switch to the dynamically generated one.
-			
-			// You can only change language models with ARPA grammars in OpenEars (the ones that end in .languagemodel or .DMP).
-			// Trying to switch between JSGF models (the ones that end in .gram) will return no result.
-			[self.pocketsphinxController changeLanguageModelToFile:self.pathToSecondDynamicallyGeneratedLanguageModel withDictionary:self.pathToSecondDynamicallyGeneratedDictionary];
-			self.usingStartLanguageModel = FALSE;
-		} else { // If we're on the dynamically generated model, switch to the start model (this is just an example of a trigger and method for switching models).
-			[self.pocketsphinxController changeLanguageModelToFile:self.pathToFirstDynamicallyGeneratedLanguageModel withDictionary:self.pathToFirstDynamicallyGeneratedDictionary];
-			self.usingStartLanguageModel = TRUE;
-		}
-	}
     
     if([hypothesis isEqualToString:@"STOP LISTENING"]){
-        if(self.usingStartLanguageModel == TRUE){
-            // press stop listening button
-            [self stopButtonAction];
-        }
+        // press stop listening button
+        [self stopButtonAction];
     }
     
-    if([hypothesis isEqualToString:@"LIGHTS ON"] || [hypothesis isEqualToString:@"LIGHT ON"]){
-        if(self.usingStartLanguageModel == TRUE){
-            // press stop listening button
+    if([hypothesis rangeOfString:@"RED ON"].location != NSNotFound){
+        //if hypothesis contains "red on" turn red on
+        redLed.textColor =[UIColor redColor];
+        if (!ledEnabled) {
             [self lightsOn];
+            ledEnabled = true;
         }
+        [self redOn];
     }
     
-    if([hypothesis isEqualToString:@"LIGHTS OFF"] || [hypothesis isEqualToString:@"LIGHT OFF"]){
-        if(self.usingStartLanguageModel == TRUE){
-            // press stop listening button
+    if([hypothesis rangeOfString:@"RED OFF"].location != NSNotFound){
+        //if hypothesis contains "red off" turn red off
+        redLed.textColor =[UIColor lightGrayColor];
+        if (!ledEnabled) {
+            [self lightsOn];
+            ledEnabled = true;
+        }
+        [self redOff];
+    }
+    
+    if([hypothesis rangeOfString:@"GREEN ON"].location != NSNotFound){
+        //if hypothesis contains "green on" turn green on
+        greenLed.textColor =[UIColor greenColor];
+        if (!ledEnabled) {
+            [self lightsOn];
+            ledEnabled = true;
+        }
+        [self greenOn];
+    }
+    
+    if([hypothesis rangeOfString:@"GREEN OFF"].location != NSNotFound){
+        //if hypothesis contains "green off" turn green on
+        greenLed.textColor =[UIColor lightGrayColor];
+        if (!ledEnabled) {
+            [self lightsOn];
+            ledEnabled = true;
+        }
+        [self greenOff];
+    }
+    
+    if([hypothesis rangeOfString:@"BLUE ON"].location != NSNotFound){
+        //if hypothesis contains "blue on" turn blue on
+        blueLed.textColor =[UIColor blueColor];
+        if (!ledEnabled) {
+            [self lightsOn];
+            ledEnabled = true;
+        }
+        [self blueOn];
+    }
+    
+    if([hypothesis rangeOfString:@"BLUE OFF"].location != NSNotFound){
+        //if hypothesis contains "blue off" turn blue off
+        blueLed.textColor =[UIColor lightGrayColor];
+        if (!ledEnabled) {
+            [self lightsOn];
+            ledEnabled = true;
+        }
+        [self blueOff];
+    }
+    
+    
+    if([hypothesis rangeOfString:@"TOGGLE LIGHTS"].location != NSNotFound){
+        //toggle all the lights on or off
+        if (!ledEnabled) {
+            [self lightsOn];
+            ledEnabled = true;
+        }
+        else {
+            ledEnabled = false;
             [self lightsOff];
         }
     }
     
-    if([hypothesis isEqualToString:@"TOGGLE LIGHTS"] || [hypothesis isEqualToString:@"TOGGLE LIGHT"]){
-        if(self.usingStartLanguageModel == TRUE){
-            // press stop listening button
-            [self toggleLight];
+    if ([hypothesis isEqualToString:@"LIGHTS ON"]) {
+        // turn the lights on (ground the led)
+        if (!ledEnabled) {
+            [self lightsOn];
+            ledEnabled = true;
         }
     }
-	
-    if(heardTextView.text.length == 0){
-        //if there isnt anything in the input box, append nothing, just add the hypothesis
-        [heardTextView setText:[NSString stringWithFormat:@"- %@", hypothesis]];
+    
+    if ([hypothesis isEqualToString:@"LIGHTS OFF"]) {
+        // turn the lights off (remove the potential across the led)
+        if (ledEnabled) {
+            [self lightsOff];
+            ledEnabled = false;
+        }
     }
-    else {
-        //if there is already text in the input box, append dashes and the hypothesis
-        [heardTextView setText:[NSString stringWithFormat:@"%@\n- %@", heardTextView.text, hypothesis]];
-        //scroll to the bottom
-        NSRange range = NSMakeRange(heardTextView.text.length - 1, 1);
-        [heardTextView scrollRangeToVisible:range];
+    
+    if ([hypothesis isEqualToString:@"CONNECT"]) {
+        if (connectButton.isHidden) {
+            // if the connect button is hidden, then the disconnect button is visible, therefore bluetooth is connected
+            // and this command is not applicable
+            [self appendToStatus:@"Bluetooth is already connected."];
+        }
+        else {
+            [self connectButtonAction];
+        }
     }
-    //self.heardTextView.text = [NSString stringWithFormat:@"Heard: \"%@\"", hypothesis]; // Show it in the status box.
+    
+    if ([hypothesis isEqualToString:@"DISCONNECT"]) {
+        if (disconnectButton.isHidden) {
+            // if the disconnect button is hidden, then the connect button is visible, therefore bluetooth is disconnected
+            // and this command is not applicable
+            [self appendToStatus:@"Bluetooth is not connected."];
+        }
+        else {
+            [self disconnectButtonAction];
+        }
+    }
+    
+    if ([hypothesis rangeOfString:@"FLASHLIGHT"].location != NSNotFound) {
+        // if the user mentions the flashlight, then turn it on
+        [self toggleTorch:torchIsOn];
+    }
 	
-	// This is how to use an available instance of FliteController. We're going to repeat back the command that we heard with the voice we've chosen.
-	[self.fliteController say:[NSString stringWithFormat:@"You said %@",hypothesis] withVoice:self.slt];
+    // display the hypothesis in the you said: box
+    youSaidLabel.text = [NSString stringWithFormat:@"\"%@\"", hypothesis];
 }
 
+// the following group of methods are from the OpenEars sample app. I kept them in here because they help for error logging.
+
 #ifdef kGetNbest
-- (void) pocketsphinxDidReceiveNBestHypothesisArray:(NSArray *)hypothesisArray { // Pocketsphinx has an n-best hypothesis dictionary.
+- (void) pocketsphinxDidReceiveNBestHypothesisArray:(NSArray *)hypothesisArray {
     NSLog(@"hypothesisArray is %@",hypothesisArray);
 }
 #endif
-// An optional delegate method of OpenEarsEventsObserver which informs that there was an interruption to the audio session (e.g. an incoming phone call).
+
 - (void) audioSessionInterruptionDidBegin {
-	NSLog(@"AudioSession interruption began."); // Log it.
-	self.statusTextView.text = @"Status: AudioSession interruption began."; // Show it in the status box.
-	[self.pocketsphinxController stopListening]; // React to it by telling Pocketsphinx to stop listening since it will need to restart its loop after an interruption.
+	NSLog(@"AudioSession interruption began.");
+	[self.pocketsphinxController stopListening];
 }
 
-// An optional delegate method of OpenEarsEventsObserver which informs that the interruption to the audio session ended.
 - (void) audioSessionInterruptionDidEnd {
-	NSLog(@"AudioSession interruption ended."); // Log it.
-	self.statusTextView.text = @"Status: AudioSession interruption ended."; // Show it in the status box.
-    // We're restarting the previously-stopped listening loop.
+	NSLog(@"AudioSession interruption ended.");
     [self startListening];
 	
 }
 
-// An optional delegate method of OpenEarsEventsObserver which informs that the audio input became unavailable.
 - (void) audioInputDidBecomeUnavailable {
-	NSLog(@"The audio input has become unavailable"); // Log it.
-	self.statusTextView.text = @"Status: The audio input has become unavailable"; // Show it in the status box.
-	[self.pocketsphinxController stopListening]; // React to it by telling Pocketsphinx to stop listening since there is no available input
+	NSLog(@"The audio input has become unavailable");
+	[self.pocketsphinxController stopListening];
 }
 
-// An optional delegate method of OpenEarsEventsObserver which informs that the unavailable audio input became available again.
 - (void) audioInputDidBecomeAvailable {
-	NSLog(@"The audio input is available"); // Log it.
-	self.statusTextView.text = @"Status: The audio input is available"; // Show it in the status box.
+	NSLog(@"The audio input is available");
     [self startListening];
 }
 
-// An optional delegate method of OpenEarsEventsObserver which informs that there was a change to the audio route (e.g. headphones were plugged in or unplugged).
 - (void) audioRouteDidChangeToRoute:(NSString *)newRoute {
 	NSLog(@"Audio route change. The new audio route is %@", newRoute); // Log it.
-	self.statusTextView.text = [NSString stringWithFormat:@"Status: Audio route change. The new audio route is %@",newRoute]; // Show it in the status box.
+	self.statusTextView.text = [NSString stringWithFormat:@"Status: Audio route change. The new audio route is %@",newRoute];
     
-	[self.pocketsphinxController stopListening]; // React to it by telling the Pocketsphinx loop to shut down and then start listening again on the new route
+	[self.pocketsphinxController stopListening];
     [self startListening];
 }
 
-// An optional delegate method of OpenEarsEventsObserver which informs that the Pocketsphinx recognition loop hit the calibration stage in its startup.
-// This might be useful in debugging a conflict between another sound class and Pocketsphinx. Another good reason to know when you're in the middle of
-// calibration is that it is a timeframe in which you want to avoid playing any other sounds including speech so the calibration will be successful.
 - (void) pocketsphinxDidStartCalibration {
-	NSLog(@"Pocketsphinx calibration has started."); // Log it.
-	self.statusTextView.text = @"Status: Pocketsphinx calibration has started."; // Show it in the status box.
+	NSLog(@"Pocketsphinx calibration has started.");
+	self.statusTextView.text = @"Status: Pocketsphinx calibration has started.";
 }
 
-// An optional delegate method of OpenEarsEventsObserver which informs that the Pocketsphinx recognition loop completed the calibration stage in its startup.
-// This might be useful in debugging a conflict between another sound class and Pocketsphinx.
 - (void) pocketsphinxDidCompleteCalibration {
-	NSLog(@"Pocketsphinx calibration is complete."); // Log it.
-	self.statusTextView.text = @"Status: Pocketsphinx calibration is complete."; // Show it in the status box.
+	NSLog(@"Pocketsphinx calibration is complete.");
     
 	self.fliteController.duration_stretch = .9; // Change the speed
 	self.fliteController.target_mean = 1.2; // Change the pitch
 	self.fliteController.target_stddev = 1.5; // Change the variance
 	
-    [self.fliteController say:@"Welcome to OpenEars." withVoice:self.slt];
+    [self.fliteController say:@"Welcome to SpeechBlinker." withVoice:self.slt];
     // The same statement with the pitch and other voice values changed.
 	
 	self.fliteController.duration_stretch = 1.0; // Reset the speed
@@ -404,121 +511,88 @@
 	self.fliteController.target_stddev = 1.0; // Reset the variance
 }
 
-// An optional delegate method of OpenEarsEventsObserver which informs that the Pocketsphinx recognition loop has entered its actual loop.
-// This might be useful in debugging a conflict between another sound class and Pocketsphinx.
 - (void) pocketsphinxRecognitionLoopDidStart {
-    
-	NSLog(@"Pocketsphinx is starting up."); // Log it.
-	self.statusTextView.text = @"Status: Pocketsphinx is starting up."; // Show it in the status box.
+	NSLog(@"Pocketsphinx is starting up.");
 }
 
-// An optional delegate method of OpenEarsEventsObserver which informs that Pocketsphinx is now listening for speech.
 - (void) pocketsphinxDidStartListening {
 	
-	NSLog(@"Pocketsphinx is now listening."); // Log it.
-	//self.statusTextView.text = @"Status: Pocketsphinx is now listening."; // Show it in the status box.
+	NSLog(@"Pocketsphinx is now listening.");
 	
-	self.startButton.hidden = TRUE; // React to it with some UI changes.
+	self.startButton.hidden = TRUE;
 	self.stopButton.hidden = FALSE;
-	self.suspendListeningButton.hidden = FALSE;
-	self.resumeListeningButton.hidden = TRUE;
     
     self.listeningStatus.textColor = [UIColor greenColor];
     self.speechStatus.textColor = [UIColor redColor];
 }
 
-// An optional delegate method of OpenEarsEventsObserver which informs that Pocketsphinx detected speech and is starting to process it.
 - (void) pocketsphinxDidDetectSpeech {
-	NSLog(@"Pocketsphinx has detected speech."); // Log it.
-	//self.statusTextView.text = @"Status: Pocketsphinx has detected speech."; // Show it in the status box.
+	NSLog(@"Pocketsphinx has detected speech.");
     
     self.speechStatus.textColor = [UIColor greenColor];
 }
 
-// An optional delegate method of OpenEarsEventsObserver which informs that Pocketsphinx detected a second of silence, indicating the end of an utterance.
-// This was added because developers requested being able to time the recognition speed without the speech time. The processing time is the time between
-// this method being called and the hypothesis being returned.
 - (void) pocketsphinxDidDetectFinishedSpeech {
-	NSLog(@"Pocketsphinx has detected a second of silence, concluding an utterance."); // Log it.
-	//self.statusTextView.text = @"Status: Pocketsphinx has detected finished speech."; // Show it in the status box.
+	NSLog(@"Pocketsphinx has detected a second of silence, concluding an utterance.");
     
     self.speechStatus.textColor = [UIColor redColor];
 }
 
-
-// An optional delegate method of OpenEarsEventsObserver which informs that Pocketsphinx has exited its recognition loop, most
-// likely in response to the PocketsphinxController being told to stop listening via the stopListening method.
 - (void) pocketsphinxDidStopListening {
-	NSLog(@"Pocketsphinx has stopped listening."); // Log it.
-	//self.statusTextView.text = @"Status: Pocketsphinx has stopped listening."; // Show it in the status box.
+	NSLog(@"Pocketsphinx has stopped listening.");
     
     self.listeningStatus.textColor = [UIColor redColor];
     self.recognitionStatus.textColor = [UIColor redColor];
 }
 
-// An optional delegate method of OpenEarsEventsObserver which informs that Pocketsphinx is still in its listening loop but it is not
-// Going to react to speech until listening is resumed.  This can happen as a result of Flite speech being
-// in progress on an audio route that doesn't support simultaneous Flite speech and Pocketsphinx recognition,
-// or as a result of the PocketsphinxController being told to suspend recognition via the suspendRecognition method.
 - (void) pocketsphinxDidSuspendRecognition {
-	NSLog(@"Pocketsphinx has suspended recognition."); // Log it.
-	//self.statusTextView.text = @"Status: Pocketsphinx has suspended recognition."; // Show it in the status box.
+	NSLog(@"Pocketsphinx has suspended recognition.");
 
     self.recognitionStatus.textColor = [UIColor redColor];
 }
 
-// An optional delegate method of OpenEarsEventsObserver which informs that Pocketsphinx is still in its listening loop and after recognition
-// having been suspended it is now resuming.  This can happen as a result of Flite speech completing
-// on an audio route that doesn't support simultaneous Flite speech and Pocketsphinx recognition,
-// or as a result of the PocketsphinxController being told to resume recognition via the resumeRecognition method.
 - (void) pocketsphinxDidResumeRecognition {
-	NSLog(@"Pocketsphinx has resumed recognition."); // Log it.
-	//self.statusTextView.text = @"Status: Pocketsphinx has resumed recognition."; // Show it in the status box.
+	NSLog(@"Pocketsphinx has resumed recognition.");
     
     self.recognitionStatus.textColor = [UIColor greenColor];
+    
+    //hack-y method of preventing recognition after starting listening
+    if (isFirstRun) {
+        [self suspendListeningButtonAction];
+        isFirstRun = FALSE;
+    }
+    else {
+        self.recognitionStatus.textColor = [UIColor greenColor];
+    }
 }
 
-// An optional delegate method which informs that Pocketsphinx switched over to a new language model at the given URL in the course of
-// recognition. This does not imply that it is a valid file or that recognition will be successful using the file.
-- (void) pocketsphinxDidChangeLanguageModelToFile:(NSString *)newLanguageModelPathAsString andDictionary:(NSString *)newDictionaryPathAsString {
-	NSLog(@"Pocketsphinx is now using the following language model: \n%@ and the following dictionary: %@",newLanguageModelPathAsString,newDictionaryPathAsString);
-}
-
-// An optional delegate method of OpenEarsEventsObserver which informs that Flite is speaking, most likely to be useful if debugging a
-// complex interaction between sound classes. You don't have to do anything yourself in order to prevent Pocketsphinx from listening to Flite talk and trying to recognize the speech.
 - (void) fliteDidStartSpeaking {
-	NSLog(@"Flite has started speaking"); // Log it.
-	//self.statusTextView.text = @"Status: Flite has started speaking."; // Show it in the status box.
+	NSLog(@"Flite has started speaking");
     
     self.isSpeakingStatus.textColor = [UIColor greenColor];
 }
 
-// An optional delegate method of OpenEarsEventsObserver which informs that Flite is finished speaking, most likely to be useful if debugging a
-// complex interaction between sound classes.
 - (void) fliteDidFinishSpeaking {
-	NSLog(@"Flite has finished speaking"); // Log it.
-	//self.statusTextView.text = @"Status: Flite has finished speaking."; // Show it in the status box.
+	NSLog(@"Flite has finished speaking");
     
     self.isSpeakingStatus.textColor = [UIColor redColor];
 }
 
-- (void) pocketSphinxContinuousSetupDidFail { // This can let you know that something went wrong with the recognition loop startup. Turn on [OpenEarsLogging startOpenEarsLogging] to learn why.
-	NSLog(@"Setting up the continuous recognition loop has failed for some reason, please turn on [OpenEarsLogging startOpenEarsLogging] in OpenEarsConfig.h to learn more."); // Log it.
-	self.statusTextView.text = @"Status: Not possible to start recognition loop."; // Show it in the status box.
+- (void) pocketSphinxContinuousSetupDidFail {
+	NSLog(@"Setting up the continuous recognition loop has failed for some reason, please turn on [OpenEarsLogging startOpenEarsLogging] in OpenEarsConfig.h to learn more.");
 }
 
-- (void) testRecognitionCompleted { // A test file which was submitted for direct recognition via the audio driver is done.
-	NSLog(@"A test file which was submitted for direct recognition via the audio driver is done."); // Log it.
+- (void) testRecognitionCompleted {
+	NSLog(@"A test file which was submitted for direct recognition via the audio driver is done.");
     [self.pocketsphinxController stopListening];
     
 }
-/** Pocketsphinx couldn't start because it has no mic permissions (will only be returned on iOS7 or later).*/
+
 - (void) pocketsphinxFailedNoMicPermissions {
     NSLog(@"The user has never set mic permissions or denied permission to this app's mic, so listening will not start.");
     self.startupFailedDueToLackOfPermissions = TRUE;
 }
 
-/** The user prompt to get mic permissions, or a check of the mic permissions, has completed with a TRUE or a FALSE result  (will only be returned on iOS7 or later).*/
 - (void) micPermissionCheckCompleted:(BOOL)result {
     if(result == TRUE) {
         self.restartAttemptsDueToPermissionRequests++;
@@ -529,24 +603,30 @@
     }
 }
 
-// This is not OpenEars-specific stuff, just some UI behavior
+// UI button actions:
 
-- (IBAction) suspendListeningButtonAction { // This is the action for the button which suspends listening without ending the recognition loop
-	[self.pocketsphinxController suspendRecognition];
-	
-	self.startButton.hidden = TRUE;
-	self.stopButton.hidden = FALSE;
-	self.suspendListeningButton.hidden = TRUE;
-	self.resumeListeningButton.hidden = FALSE;
+// suspend recognition when the user stops pressing the htt button
+- (IBAction) suspendListeningButtonAction {
+    // if you are currently speaking and let go of the button, the app sort-of crashes,
+    // this is my attempt at fixing the problem
+    if(self.speechStatus.textColor != [UIColor greenColor]){
+        [self.pocketsphinxController suspendRecognition];
+        
+        self.httButton.layer.backgroundColor = [UIColor whiteColor].CGColor;
+        self.startButton.hidden = TRUE;
+        self.stopButton.hidden = FALSE;
+    }
 }
 
+// begin recognition when the user presses the htt button
 - (IBAction) resumeListeningButtonAction { // This is the action for the button which resumes listening if it has been suspended
-	[self.pocketsphinxController resumeRecognition];
-	
-	self.startButton.hidden = TRUE;
-	self.stopButton.hidden = FALSE;
-	self.suspendListeningButton.hidden = FALSE;
-	self.resumeListeningButton.hidden = TRUE;
+	if(self.speechStatus.textColor != [UIColor greenColor]){
+        [self.pocketsphinxController resumeRecognition];
+        
+        self.httButton.layer.backgroundColor = [UIColor lightGrayColor].CGColor;
+        self.startButton.hidden = TRUE;
+        self.stopButton.hidden = FALSE;
+    }
 }
 
 - (IBAction) stopButtonAction { // This is the action for the button which shuts down the recognition loop.
@@ -554,8 +634,7 @@
 	
 	self.startButton.hidden = FALSE;
 	self.stopButton.hidden = TRUE;
-	self.suspendListeningButton.hidden = TRUE;
-	self.resumeListeningButton.hidden = TRUE;
+    self.httButton.hidden = TRUE;
 }
 
 - (IBAction) startButtonAction { // This is the action for the button which starts up the recognition loop again if it has been shut down.
@@ -563,43 +642,56 @@
 	
 	self.startButton.hidden = TRUE;
 	self.stopButton.hidden = FALSE;
-	self.suspendListeningButton.hidden = FALSE;
-	self.resumeListeningButton.hidden = TRUE;
+    self.httButton.hidden = FALSE;
+    isFirstRun = true;
 }
 
-- (IBAction) toggleLight{
-    if ([lightToggle isOn]) {
-        //lights are on, toggle off
-        [lightToggle setOn:NO animated:NO];
-        [self toggleTorch:FALSE];
+- (IBAction) connectButtonAction{
+    
+    [self appendToStatus:@"Connecting to Bluetooth hardware."];
+    
+    if (ble.peripherals)
+        ble.peripherals = nil;
+    
+    [ble findBLEPeripherals:2];
+    
+    // Allow the device to search for a bluetooth device for 3 seconds
+    [NSTimer scheduledTimerWithTimeInterval:(float)3.0 target:self selector:@selector(connectionTimer:) userInfo:nil repeats:NO];
+    
+    [connectButton setEnabled:false];
+}
+
+-(void) connectionTimer:(NSTimer *)timer
+{
+    if (ble.peripherals.count > 0)
+    {
+        [ble connectPeripheral:[ble.peripherals objectAtIndex:0]];
+        [connectButton setEnabled:true];
+        [connectButton setHidden:true];
+        [disconnectButton setHidden:false];
     }
-    else{
-        //lights are off, toggle on
-        [lightToggle setOn:YES animated:YES];
-        [self toggleTorch:true];
+    else
+    {
+        [connectButton setEnabled:true];
+        [connectButton setHidden:false];
+        [disconnectButton setHidden:true];
+        [self appendToStatus:@"Cannot find any Bluetooth hardware."];
     }
 }
 
-- (void) lightsOn{
-    if ([lightToggle isOn]) {
-        //lights are on, say message
-        [self.fliteController say:[NSString stringWithFormat:@"I'm sorry Dave, I'm afraid I can't do that."] withVoice:self.slt];
-    }
-    else{
-        //lights are off, turn on
-        [self toggleLight];
-    }
+- (IBAction) disconnectButtonAction{
+    //disconnect from the ble board
+    [ble.CM cancelPeripheralConnection: ble.activePeripheral];
+    [self appendToStatus:@"Disconnecting from Bluetooth hardware."];
+    redLed.textColor = [UIColor lightGrayColor];
+    greenLed.textColor = [UIColor lightGrayColor];
+    blueLed.textColor = [UIColor lightGrayColor];
 }
 
-- (void) lightsOff{
-    if ([lightToggle isOn]) {
-        //lights are on, turn off
-        [self toggleLight];
-    }
-    else{
-        //lights are off, say message
-        [self.fliteController say:[NSString stringWithFormat:@"I'm sorry Dave, I'm afraid I can't do that."] withVoice:self.slt];
-    }
+-(IBAction)sendData:(UInt8[3]) buf
+{
+    NSData *data = [[NSData alloc] initWithBytes:buf length:3];
+    [ble write:data];
 }
 
 - (void) toggleTorch: (bool) on {
@@ -610,18 +702,82 @@
         AVCaptureDevice *device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
         if ([device hasTorch] && [device hasFlash]){
             [device lockForConfiguration:nil];
-            if (on) {
+            if (!on) {
                 [device setTorchMode:AVCaptureTorchModeOn];
                 [device setFlashMode:AVCaptureFlashModeOn];
-                //torchIsOn = YES; //define as a variable/property if you need to know status
+                torchIsOn = TRUE;
             } else {
                 [device setTorchMode:AVCaptureTorchModeOff];
                 [device setFlashMode:AVCaptureFlashModeOff];
-                //torchIsOn = NO;
+                torchIsOn = FALSE;
             }
             [device unlockForConfiguration];
         }
     }
+}
+
+/*
+ Light commands structure looks like this:
+ 000 - disable LED (set common cathode to high)
+ 010 - enable LED (set common cathode to low)
+ 100 - no lights (all signal bits high)
+ 110 - red on
+ 120 - red off
+ 130 - green on
+ 140 - green off
+ 150 - blue on
+ 160 - blue off
+*/
+
+- (void) redOn {
+    UInt8 buf[3] = {0x01, 0x01, 0x00};
+    NSData *data = [[NSData alloc] initWithBytes:buf length:3];
+    [ble write:data];
+    //update the UI
+}
+
+- (void) blueOn {
+    UInt8 buf[3] = {0x01, 0x05, 0x00};
+    NSData *data = [[NSData alloc] initWithBytes:buf length:3];
+    [ble write:data];
+}
+
+- (void) greenOn {
+    UInt8 buf[3] = {0x01, 0x03, 0x00};
+    NSData *data = [[NSData alloc] initWithBytes:buf length:3];
+    [ble write:data];
+}
+
+- (void) redOff {
+    UInt8 buf[3] = {0x01, 0x02, 0x00};
+    NSData *data = [[NSData alloc] initWithBytes:buf length:3];
+    [ble write:data];
+}
+
+- (void) blueOff {
+    UInt8 buf[3] = {0x01, 0x06, 0x00};
+    NSData *data = [[NSData alloc] initWithBytes:buf length:3];
+    [ble write:data];
+}
+
+- (void) greenOff {
+    UInt8 buf[3] = {0x01, 0x04, 0x00};
+    NSData *data = [[NSData alloc] initWithBytes:buf length:3];
+    [ble write:data];
+}
+
+- (void) lightsOn{
+    UInt8 buf[3] = {0x00, 0x00, 0x00};
+    NSData *data = [[NSData alloc] initWithBytes:buf length:3];
+    [ble write:data];
+    ledEnabled = true;
+}
+
+- (void) lightsOff{
+    UInt8 buf[3] = {0x00, 0x01, 0x00};
+    NSData *data = [[NSData alloc] initWithBytes:buf length:3];
+    [ble write:data];
+    ledEnabled = false;
 }
 
 // What follows are not OpenEars methods, just an approach for level reading
@@ -663,6 +819,21 @@
 {
     [super didReceiveMemoryWarning];
     // Dispose of any resources that can be recreated.
+}
+
+- (void) appendToStatus: (NSString *)message
+{
+    if (statusTextView.text.length == 0) {
+        //first line
+        [statusTextView setText:[NSString stringWithFormat:@"- %@", message]];
+    }
+    else {
+        //if there is already text in the status box, append dashes and the message
+        [statusTextView setText:[NSString stringWithFormat:@"%@\n- %@", statusTextView.text, message]];
+        //scroll to the bottom
+        NSRange range = NSMakeRange(statusTextView.text.length - 1, 1);
+        [statusTextView scrollRangeToVisible:range];
+    }
 }
 
 @end
