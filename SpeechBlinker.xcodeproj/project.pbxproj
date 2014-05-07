@@ -107,7 +107,6 @@
 		9D2A8231190060A700AFD578 = {
 			isa = PBXGroup;
 			children = (
-				9D323575191393C700741EE8 /* BLE */,
 				9D2A8243190060A700AFD578 /* SpeechBlinker */,
 				9D2A825C190060A700AFD578 /* SpeechBlinkerTests */,
 				9D2A823B190060A700AFD578 /* Products */,
@@ -171,6 +170,7 @@
 		9D2A8271190061D400AFD578 /* Framework */ = {
 			isa = PBXGroup;
 			children = (
+				9D323575191393C700741EE8 /* BLE */,
 				9D32357319138E3500741EE8 /* CoreBluetooth.framework */,
 				9D2A827C190062DF00AFD578 /* AVFoundation.framework */,
 				9D2A827A190062D600AFD578 /* AudioToolbox.framework */,
@@ -202,8 +202,7 @@
 				9D323577191393C700741EE8 /* BLE.m */,
 				9D323578191393C700741EE8 /* BLEDefines.h */,
 			);
-			name = BLE;
-			path = Framework/BLE;
+			path = BLE;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
