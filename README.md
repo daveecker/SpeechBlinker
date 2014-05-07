@@ -1,7 +1,7 @@
 SpeechBlinker
 =============
 
-[screenshot](/screenshots/SpeechBlinker.PNG?raw=true)
+![screenshot](/screenshots/SpeechBlinker.PNG)
 
 A small iOS app that uses Open Ears to manipulate UI elements and an Arduino over BLE.
 
